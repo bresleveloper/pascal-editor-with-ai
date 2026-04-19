@@ -1,5 +1,6 @@
 export type { EditorProps } from './components/editor'
 export { default as Editor } from './components/editor'
+export { AIChatPanel } from './components/ui/ai-chat/ai-chat-panel'
 export { useCommandPalette } from './components/ui/command-palette'
 export { SliderControl } from './components/ui/controls/slider-control'
 export { FloatingLevelSelector } from './components/ui/floating-level-selector'
@@ -23,6 +24,13 @@ export type { SceneGraph } from './lib/scene'
 export { applySceneGraphToEditor } from './lib/scene'
 export { triggerSFX } from './lib/sfx-bus'
 export { default as useAudio } from './store/use-audio'
+export {
+  type ChatMessage,
+  type ChatMessageData,
+  type ChatState,
+  type ChatStatus,
+  useChatStore,
+} from './store/use-chat'
 export { type CommandAction, useCommandRegistry } from './store/use-command-registry'
 export type { FloorplanSelectionTool, SplitOrientation, ViewMode } from './store/use-editor'
 export { default as useEditor } from './store/use-editor'

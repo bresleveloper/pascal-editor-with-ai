@@ -1,12 +1,18 @@
 'use client'
 
 import { Editor, type SidebarTab, ViewerToolbarLeft, ViewerToolbarRight } from '@pascal-app/editor'
+import AIChatPanel from '@pascal-app/editor/components/ui/ai-chat/ai-chat-panel'
 
 const SIDEBAR_TABS: (SidebarTab & { component: React.ComponentType })[] = [
   {
     id: 'site',
     label: 'Scene',
     component: () => null, // Built-in SitePanel handles this
+  },
+  {
+    id: 'ai-chat',
+    label: 'AI Agent',
+    component: AIChatPanel,
   },
 ]
 

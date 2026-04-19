@@ -2,7 +2,7 @@
  * Built-in test scenarios for the agent system.
  */
 
-import { complexWallFixture, kitchenFixture } from '@pascal/scene-api'
+import { complexWallFixture, kitchenFixture, type SceneData } from '@pascal/scene-api'
 
 export interface Scenario {
   name: string
