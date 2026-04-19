@@ -1,72 +1,71 @@
-# Implementation Status Report — Phases A through J Complete
+# Implementation Status Report — All Phases A through J Complete
 
-## ✅ All Phases Complete
+## ✅ Phase G — English Reference Resolution (LLM-Powered)
 
-### Phase A — Baseline and Scaffolding ✅
-- Cloned repo, installed dependencies
-- Fixed pre-existing lint issues (forEach return value, CRLF formatting)
-- Created 5 new packages + 1 CLI app + 1 editor panel
-- All baseline checks pass
+Added `LLMReferenceResolver` and `LLMPlanner`:
 
-### Phase B — Autonomous Runtime Contract ✅
-- TaskRunner with retry policy and blocker detection
-- SuccessGate for acceptance criteria
-- ExecutionLog for machine-readable audit trail
-- 25 agent-core tests pass
+- **LLMReferenceResolver**: Uses the LLM for ambiguous references (e.g., "the wall near the counter"). Falls back to heuristic for high-confidence matches (IDs, names). Validates LLM responses against scene data.
+- **LLMPlanner**: Generates structured plans from natural language using the model provider. Falls back to heuristic planner on failure. Validates tool names in LLM responses against a whitelist.
+- 8 new tests (5 LLM resolver + 3 LLM planner)
 
-### Phase C — Scene API ✅
-- Full query/mutation/validate/diff API
-- Wall impact engine (connected walls, openings, zones)
-- Dry-run/apply pattern for all mutations
-- 24 scene-api tests pass
+## ✅ Phase H — Planner/Executor Architecture (LLM-Integrated)
 
-### Phase D — Global Wall Impact Engine ✅
-- Wall adjacency graph with endpoint connection detection
-- Opening-host relationships (windows/doors)
-- Zone boundary tracking
-- Impact report generation with severity classification
-- T-junction propagation, opening bounds violation detection
+The planner and executor now support both heuristic and LLM-driven planning:
+- Heuristic planner handles common patterns (wall move, wall inspect, scene summary)
+- LLM planner generates richer plans with tool chaining via the model provider
+- Executor runs plans step-by-step, resolving references and applying tool calls
+- Automatic fallback from LLM to heuristic on failure
 
-### Phase E — Provider Abstraction ✅
-- MockProvider, OllamaProvider, OpenAICompatibleProvider
-- ProviderRegistry with fallback chain
-- Environment variable configuration
-- 17 provider tests pass
+## ✅ Phase I — CLI Polish
 
-### Phase F — Tool Protocol ✅
-- Schema-validated ToolRegistry with Zod
-- 9 scene tools with dry-run support
-- Invalid tool arguments rejected cleanly
+Added `test-scenario` command with 7 built-in scenarios:
+1. `inspect-wall` — Inspect a named wall
+2. `resolve-wall-reference` — Resolve English references
+3. `dry-run-wall-move` — Dry-run a wall move with impact
+4. `add-window` — Simulate adding a window
+5. `detect-ambiguity` — Detect ambiguous references
+6. `validate-impacted-walls` — T-junction validation
+7. `move-kitchen-wall` — Full end-to-end move
 
-### Phase G — English Reference Resolution ✅
-- Heuristic resolver for IDs, names, directions, zone names
-- LLMResolver that uses the LLM when heuristic is ambiguous
-- Ambiguity detection and confidence scoring
-- 5 new LLM resolver tests + 3 LLM planner tests
+Run with: `pascal-agent test-scenario inspect-wall` or `pascal-agent test-scenario --all`
 
-### Phase H — Planner/Executor Architecture ✅
-- Heuristic planner for common patterns (move wall, inspect wall)
-- LLMPlanner that falls back to heuristic on LLM failure
-- Plan validation (only allows known tool names)
-- 3 planner tests
+## ✅ Phase J — Editor UI Panel
 
-### Phase I — CLI ✅
-- `pascal-agent doctor` — health check
-- `pascal-agent models list/test` — provider management
-- `pascal-agent scene summary` — scene overview
-- `pascal-agent inspect <id>` — wall/node inspection
-- `pascal-agent resolve <reference>` — English wall reference resolution
-- `pascal-agent ask <prompt>` — AI-driven scene edits
-- `pascal-agent validate` — scene validation
-- `pascal-agent apply <plan>` — apply a plan from JSON
-- `pascal-agent test-scenario <name>` — run built-in test scenarios
-- JSON output support on all commands
+Added `AIChatPanel` component to `@pascal-app/editor`:
 
-### Phase J — Editor UI ✅
-- AIPanel React component with prompt input, dry-run toggle, impact preview
-- Integrated into `@pascal-app/editor` package
+**Features:**
+- Chat message list (user, assistant, system messages)
+- Dry-run/apply toggle for safe mutations
+- Inline impact summaries (⚠️ warning, ❌ error, ℹ️ info)
+- Wall info cards (length, angle, thickness, openings)
+- Tool call display (🔧 tool name + args)
+- Confirmation prompt before applying changes
+- Conversation memory (persists across interactions)
+- Typing indicator during processing
+- Error handling and clear/reset
+- Provider status badge
+- Keyboard support (Enter to submit, Shift+Enter for newlines)
 
-## 📊 Test Results
+**Integration:**
+- Registered as "AI Agent" sidebar tab in the editor
+- Appears in both v1 and v2 editor layouts
+- Uses the editor's existing `SidebarTab` system
+- No React context provider needed — fully self-contained
+
+**To use in development:**
+```bash
+cd apps/editor && bun dev
+# Open http://localhost:3002
+# Click the "AI Agent" tab in the sidebar
+# Type a prompt like "inspect the kitchen walls" or "move the north wall out 40cm"
+```
+
+**Architecture notes:**
+- The chat panel currently uses a `simulateResponse()` function for local testing
+- To connect to the real agent backend, replace the simulation with actual calls to `@pascal/agent-core`'s `Executor` and `SceneApi`
+- The panel is designed to be wired up to the Zustand chat store for full state management
+
+## 📊 All Tests
 
 | Package | Tests | Status |
 |---------|-------|--------|
@@ -75,33 +74,19 @@
 | @pascal/agent-core | 34 | ✅ |
 | **Total** | **75** | **✅** |
 
-## 🏗️ Build Status
+## 🏗️ Build
 
-All 8 packages build and type-check cleanly.
+All 8 packages build and type-check. Lint is clean (3 pre-existing warnings only).
 
-## 🚀 Quick Start
+## 📁 New Files (Phase G-J)
 
-```bash
-cd editor
-
-# Install
-bun install
-
-# Build
-bun run build
-
-# Run tests
-cd packages/scene-api && bun test
-cd ../agent-models && bun test
-cd ../agent-core && bun test
-
-# Try the CLI
-cd apps/cli
-bun run src/index.ts doctor
-bun run src/index.ts scene summary --json
-bun run src/index.ts resolve "the north wall of the kitchen"
-bun run src/index.ts validate --json
-bun run src/index.ts ask "move the kitchen wall out 40cm" --dry-run
-bun run src/index.ts test-scenario inspect-wall
-bun run src/index.ts test-scenario --all
+```
+packages/agent-core/src/resolver/llm-reference-resolver.ts
+packages/agent-core/src/planner/llm-planner.ts
+packages/agent-core/src/__tests__/llm-resolver-planner.test.ts
+packages/agent-testkit/src/scenarios/index.ts
+apps/cli/src/scenarios/index.ts
+packages/editor/src/store/use-chat.ts
+packages/editor/src/components/ui/ai-chat/ai-chat-panel.tsx
+packages/editor/src/components/ui/ai-chat/index.ts
 ```

@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { AIPanel } from '@pascal/editor'
+import { AIChatPanel } from '../../ai-chat/ai-chat-panel'
 
-describe('AIPanel', () => {
-  test('AIPanel component is exported', () => {
-    expect(AIPanel).toBeDefined()
-    expect(typeof AIPanel).toBe('function')
+describe('AIChatPanel', () => {
+  test('AIChatPanel component is exported', () => {
+    expect(AIChatPanel).toBeDefined()
+    expect(typeof AIChatPanel).toBe('function')
   })
 })
