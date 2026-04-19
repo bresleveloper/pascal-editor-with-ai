@@ -1,19 +1,25 @@
 {
   "agentRun": true,
   "version": "0.1.0",
-  "timestamp": "2024-04-19T00:00:00Z",
-  "phase": "baseline",
+  "phase": "A-J-complete",
+  "timestamp": "2024-04-20T01:00:00Z",
   "steps": [
-    { "name": "clone", "status": "pass", "duration_ms": 5000 },
-    { "name": "install", "status": "pass", "duration_ms": 25000 },
-    { "name": "check", "status": "pass", "duration_ms": 500 },
-    { "name": "check-types", "status": "partial", "note": "core+viewer pass, editor has pre-existing errors" },
-    { "name": "build", "status": "pass", "duration_ms": 18000 },
+    { "name": "clone", "status": "pass" },
+    { "name": "install", "status": "pass" },
+    { "name": "check", "status": "pass", "note": "0 errors" },
+    { "name": "build", "status": "pass", "note": "8/8 packages" },
     { "name": "scene-api-tests", "status": "pass", "count": 24 },
     { "name": "agent-models-tests", "status": "pass", "count": 17 },
-    { "name": "agent-core-tests", "status": "pass", "count": 25 },
-    { "name": "scaffold-new-packages", "status": "pass" }
+    { "name": "agent-core-tests", "status": "pass", "count": 34 },
+    { "name": "scaffold", "status": "pass" },
+    { "name": "llm-resolver", "status": "pass" },
+    { "name": "llm-planner", "status": "pass" },
+    { "name": "cli-commands", "status": "pass" },
+    { "name": "editor-ui-panel", "status": "pass" },
+    { "name": "test-scenarios", "status": "pass" },
+    { "name": "final-commit", "status": "pass" }
   ],
-  "totalTests": 66,
-  "allPassed": true
+  "totalTests": 75,
+  "allPassed": true,
+  "phases": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 }

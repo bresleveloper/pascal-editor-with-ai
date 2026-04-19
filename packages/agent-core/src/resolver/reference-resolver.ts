@@ -25,7 +25,7 @@ export interface ResolvedReference {
  * common patterns for deterministic testing.
  */
 export class ReferenceResolver {
-  private sceneApi: SceneApi
+  protected sceneApi: SceneApi
 
   constructor(sceneApi: SceneApi) {
     this.sceneApi = sceneApi

@@ -93,4 +93,20 @@ program
   .option('--json', 'Output as JSON')
   .action(apply)
 
+program
+  .command('test-scenario [name]')
+  .description('Run a built-in test scenario')
+  .option('--json', 'Output as JSON')
+  .option('--all', 'Run all scenarios')
+  .action(async (name: string | undefined, options: { json?: boolean; all?: boolean }) => {
+    const { runScenario, runAllScenarios } = await import('./scenarios/index')
+    if (options.all || !name) {
+      const passed = await runAllScenarios(options)
+      process.exit(passed ? 0 : 1)
+    } else {
+      const result = await runScenario(name, options)
+      process.exit(result.passed ? 0 : 1)
+    }
+  })
+
 program.parse(process.argv)
