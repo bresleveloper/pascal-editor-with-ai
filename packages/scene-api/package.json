@@ -1,0 +1,29 @@
+{
+  "name": "@pascal/scene-api",
+  "version": "0.1.0",
+  "description": "Pure typed domain API over scene state and scene mutations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsc --build --watch",
+    "check-types": "tsc --noEmit",
+    "test": "bun test src/__tests__/*.test.ts"
+  },
+  "dependencies": {
+    "@pascal-app/core": "*"
+  },
+  "devDependencies": {
+    "@pascal/typescript-config": "*",
+    "@types/bun": "^1.3.12",
+    "typescript": "5.9.3"
+  }
+}

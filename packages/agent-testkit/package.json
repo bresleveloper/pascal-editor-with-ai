@@ -1,0 +1,30 @@
+{
+  "name": "@pascal/agent-testkit",
+  "version": "0.1.0",
+  "description": "Test fixtures, scenario harnesses, deterministic model stubs, matchers, golden tests",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsc --build --watch",
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@pascal/agent-core": "*",
+    "@pascal/agent-models": "*",
+    "@pascal/scene-api": "*"
+  },
+  "devDependencies": {
+    "@pascal/typescript-config": "*",
+    "typescript": "5.9.3"
+  }
+}

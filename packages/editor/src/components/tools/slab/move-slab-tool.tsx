@@ -1,6 +1,6 @@
 'use client'
 
-import { type AnyNodeId, emitter, type GridEvent, useScene, type SlabNode } from '@pascal-app/core'
+import { type AnyNodeId, emitter, type GridEvent, type SlabNode, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { markToolCancelConsumed } from '../../../hooks/use-keyboard'

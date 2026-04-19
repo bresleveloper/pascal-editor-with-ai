@@ -13,8 +13,8 @@ import type { Material } from 'three'
 import { Color } from 'three'
 import { Fn, float, fract, length, mix, positionLocal, smoothstep, step, vec2 } from 'three/tsl'
 import { type Mesh, MeshStandardNodeMaterial, Vector3 } from 'three/webgpu'
-import useViewer from '../../store/use-viewer'
 import { createMaterial, createMaterialFromPresetRef } from '../../lib/materials'
+import useViewer from '../../store/use-viewer'
 
 const tmpVec = new Vector3()
 const u = new Vector3()
@@ -100,10 +100,7 @@ function getHighlightedColor(color: Color, kind: WallHighlightKind): Color {
   return color.clone().lerp(profile.color, profile.blend)
 }
 
-function createHighlightedWallMaterial(
-  material: Material,
-  kind: WallHighlightKind,
-): Material {
+function createHighlightedWallMaterial(material: Material, kind: WallHighlightKind): Material {
   const highlightedMaterial = material.clone() as Material & {
     color?: Color
     emissive?: Color
@@ -187,7 +184,10 @@ function getMaterialsForWall(wallNode: WallNode): WallMaterials {
     'selection',
   ) as MeshStandardNodeMaterial
   const deleteVisible = createHighlightedWallMaterial(visibleMat, 'delete')
-  const deleteInvisible = createHighlightedWallMaterial(invisibleMat, 'delete') as MeshStandardNodeMaterial
+  const deleteInvisible = createHighlightedWallMaterial(
+    invisibleMat,
+    'delete',
+  ) as MeshStandardNodeMaterial
 
   const result: WallMaterials = {
     visible: visibleMat,

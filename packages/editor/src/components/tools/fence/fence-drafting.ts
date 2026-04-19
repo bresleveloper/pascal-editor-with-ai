@@ -2,11 +2,11 @@ import { FenceNode, useScene, type WallNode } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { sfxEmitter } from '../../../lib/sfx-bus'
 import {
-  type WallPlanPoint,
   findWallSnapTarget,
   isWallLongEnough,
   snapPointTo45Degrees,
   snapPointToGrid,
+  type WallPlanPoint,
 } from '../wall/wall-drafting'
 
 export type FencePlanPoint = WallPlanPoint

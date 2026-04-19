@@ -1,0 +1,74 @@
+{
+  "nodes": {
+    "site_kitchen": {
+      "id": "site_kitchen",
+      "type": "site",
+      "parentId": null,
+      "children": ["building_kitchen"],
+      "polygon": {
+        "type": "polygon",
+        "points": [[-10, -10], [10, -10], [10, 10], [-10, 10]]
+      }
+    },
+    "building_kitchen": {
+      "id": "building_kitchen",
+      "type": "building",
+      "parentId": "site_kitchen",
+      "children": ["level_kitchen"],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0]
+    },
+    "level_kitchen": {
+      "id": "level_kitchen",
+      "type": "level",
+      "parentId": "building_kitchen",
+      "children": ["wall_kitchen_north", "wall_kitchen_west", "window_kitchen_north", "zone_kitchen"],
+      "level": 0
+    },
+    "wall_kitchen_north": {
+      "id": "wall_kitchen_north",
+      "type": "wall",
+      "parentId": "level_kitchen",
+      "children": ["window_kitchen_north"],
+      "name": "North Wall",
+      "start": [0, 0],
+      "end": [4, 0],
+      "thickness": 0.2,
+      "height": 2.8,
+      "frontSide": "interior",
+      "backSide": "exterior"
+    },
+    "wall_kitchen_west": {
+      "id": "wall_kitchen_west",
+      "type": "wall",
+      "parentId": "level_kitchen",
+      "children": [],
+      "name": "West Wall",
+      "start": [0, 0],
+      "end": [0, 3],
+      "thickness": 0.2,
+      "height": 2.8,
+      "frontSide": "interior",
+      "backSide": "exterior"
+    },
+    "window_kitchen_north": {
+      "id": "window_kitchen_north",
+      "type": "window",
+      "parentId": "wall_kitchen_north",
+      "wallId": "wall_kitchen_north",
+      "position": [2, 1.4, 0],
+      "rotation": [0, 0, 0],
+      "width": 1.5,
+      "height": 1.2
+    },
+    "zone_kitchen": {
+      "id": "zone_kitchen",
+      "type": "zone",
+      "parentId": "level_kitchen",
+      "name": "Kitchen",
+      "polygon": [[0.1, 0.1], [3.9, 0.1], [3.9, 2.9], [0.1, 2.9]],
+      "color": "#3b82f6"
+    }
+  },
+  "rootNodeIds": ["site_kitchen"]
+}

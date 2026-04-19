@@ -1,0 +1,19 @@
+{
+  "agentRun": true,
+  "version": "0.1.0",
+  "timestamp": "2024-04-19T00:00:00Z",
+  "phase": "baseline",
+  "steps": [
+    { "name": "clone", "status": "pass", "duration_ms": 5000 },
+    { "name": "install", "status": "pass", "duration_ms": 25000 },
+    { "name": "check", "status": "pass", "duration_ms": 500 },
+    { "name": "check-types", "status": "partial", "note": "core+viewer pass, editor has pre-existing errors" },
+    { "name": "build", "status": "pass", "duration_ms": 18000 },
+    { "name": "scene-api-tests", "status": "pass", "count": 24 },
+    { "name": "agent-models-tests", "status": "pass", "count": 17 },
+    { "name": "agent-core-tests", "status": "pass", "count": 25 },
+    { "name": "scaffold-new-packages", "status": "pass" }
+  ],
+  "totalTests": 66,
+  "allPassed": true
+}

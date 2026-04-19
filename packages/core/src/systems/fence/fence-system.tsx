@@ -162,7 +162,7 @@ function generateFenceGeometry(fence: FenceNode) {
   })
 
   const merged = mergeGeometries(geometries, false) ?? new THREE.BufferGeometry()
-  geometries.forEach((geometry) => geometry.dispose())
+  for (const geometry of geometries) geometry.dispose()
   applyFenceUVs(merged)
   merged.computeVertexNormals()
   return merged
