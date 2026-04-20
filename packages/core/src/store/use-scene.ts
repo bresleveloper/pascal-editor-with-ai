@@ -289,9 +289,10 @@ const useScene: UseSceneStore = create<SceneState>()(
           children: [level0.id],
         })
 
-        const site = SiteNode.parse({
-          children: [building],
-        })
+        // Create site without children, then override children with just the ID string
+        // to keep the flat node-dict architecture consistent (all children are IDs, not objects)
+        const siteBase = SiteNode.parse({})
+        const site = { ...siteBase, children: [building.id] as unknown as typeof siteBase.children }
 
         // Define all nodes flat
         const nodes: Record<AnyNodeId, AnyNode> = {

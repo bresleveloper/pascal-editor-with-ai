@@ -1,6 +1,13 @@
 export type { EditorProps } from './components/editor'
 export { default as Editor } from './components/editor'
-export { AIChatPanel } from './components/ui/ai-chat/ai-chat-panel'
+export type { AgentConfig, AgentResponse } from './components/ui/ai-chat'
+export {
+  AIChatPanel,
+  DEFAULT_CONFIG,
+  localFallback,
+  sendToAgent,
+  TOOL_DEFINITIONS,
+} from './components/ui/ai-chat'
 export { useCommandPalette } from './components/ui/command-palette'
 export { SliderControl } from './components/ui/controls/slider-control'
 export { FloatingLevelSelector } from './components/ui/floating-level-selector'

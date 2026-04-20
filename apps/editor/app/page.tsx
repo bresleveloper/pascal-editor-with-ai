@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  AIChatPanel,
-  Editor,
-  type SidebarTab,
-  ViewerToolbarLeft,
-  ViewerToolbarRight,
-} from '@pascal-app/editor'
+import { AIChatPanel, Editor, type SidebarTab } from '@pascal-app/editor'
 
 const SIDEBAR_TABS: (SidebarTab & { component: React.ComponentType })[] = [
   {
@@ -24,13 +18,7 @@ const SIDEBAR_TABS: (SidebarTab & { component: React.ComponentType })[] = [
 export default function Home() {
   return (
     <div className="h-screen w-screen">
-      <Editor
-        layoutVersion="v2"
-        projectId="local-editor"
-        sidebarTabs={SIDEBAR_TABS}
-        viewerToolbarLeft={<ViewerToolbarLeft />}
-        viewerToolbarRight={<ViewerToolbarRight />}
-      />
+      <Editor layoutVersion="v2" projectId="local-editor" sidebarTabs={SIDEBAR_TABS} />
     </div>
   )
 }

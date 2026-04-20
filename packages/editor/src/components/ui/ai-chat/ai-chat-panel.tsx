@@ -1,75 +1,30 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { sendToAgent, localFallback, DEFAULT_CONFIG, type AgentConfig } from '../../../lib/agent/agent-service'
+import type { ChatMessage, ChatMessageData } from '../../../store/use-chat'
 
 /**
  * AI Chat Panel — a full conversation interface for the Pascal Agent.
  *
- * This is a fully self-contained React component with its own state management.
- * It provides:
- * - A scrollable message list with user/assistant/system messages
- * - A text input for sending prompts
- * - A dry-run/apply toggle
- * - Inline impact summaries and tool call results
- * - Confirmation prompts before applying changes
- * - Conversation memory (messages persist across interactions)
- *
- * To connect to the real agent backend, replace `simulateResponse` with
- * actual agent-core calls in `handleSubmit`.
+ * Connects to Ollama for LLM-powered scene editing.
+ * Falls back to local pattern matching when Ollama is unavailable.
+ * Can create houses, rooms, walls, windows, doors, zones — everything.
  */
 
-// ── Types ──────────────────────────────────────────────────────────────────────────
-
-export interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: number
-  data?: ChatMessageData
-  isStreaming?: boolean
+export interface AIChatPanelProps {
+  /** Ollama configuration override */
+  agentConfig?: Partial<AgentConfig>
 }
 
-export interface ChatMessageData {
-  toolCalls?: Array<{
-    name: string
-    args: Record<string, unknown>
-    result?: unknown
-  }>
-  impacts?: Array<{
-    category: string
-    description: string
-    severity: 'info' | 'warning' | 'error'
-    affectedIds: string[]
-  }>
-  wallInfo?: {
-    id: string
-    name?: string
-    length: number
-    angle: number
-    thickness?: number
-    height?: number
-    openings: string[]
-  }
-}
-
-export type ChatStatus = 'idle' | 'thinking' | 'executing' | 'waiting_confirmation' | 'error'
-
-// ── Component ─────────────────────────────────────────────────────────────────────
-
-export function AIChatPanel() {
+export function AIChatPanel({ agentConfig }: AIChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [status, setStatus] = useState<ChatStatus>('idle')
+  const [status, setStatus] = useState<'idle' | 'thinking' | 'executing' | 'error'>('idle')
   const [input, setInput] = useState('')
-  const [dryRun, setDryRun] = useState(true)
-  const [pendingConfirmation, setPendingConfirmation] = useState<{
-    planDescription: string
-    impactSummary: string
-    risks: string[]
-  } | null>(null)
+  const [dryRun, setDryRun] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const isLoading = status === 'thinking' || status === 'executing'
+  const config = { ...DEFAULT_CONFIG, ...agentConfig }
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -77,9 +32,9 @@ export function AIChatPanel() {
   }, [messages.length])
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault()
-      if (!input.trim() || isLoading) return
+      if (!input.trim() || status === 'thinking' || status === 'executing') return
 
       const prompt = input.trim()
       setInput('')
@@ -95,43 +50,95 @@ export function AIChatPanel() {
       setMessages((prev) => [...prev, userMsg])
       setStatus('thinking')
 
-      // Simulate assistant processing
+      // Add placeholder assistant message
       const assistantId = `asst_${Date.now()}`
       setMessages((prev) => [
         ...prev,
-        {
-          id: assistantId,
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          isStreaming: true,
-        },
+        { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), isStreaming: true },
       ])
 
-      setTimeout(() => {
-        const isDryRunPrompt = dryRun || prompt.toLowerCase().includes('dry-run') || prompt.toLowerCase().includes('preview')
-        const response = simulateResponse(prompt, isDryRunPrompt)
+      try {
+        // Try local pattern matching first (instant, no LLM needed)
+        const localResult = localFallback(prompt)
 
+        if (localResult) {
+          // Local pattern matched — we have a result without LLM
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    content: localResult.success
+                      ? `✅ ${localResult.message}\n\n*(Executed locally — no LLM needed)*`
+                      : `❌ ${localResult.message}`,
+                    isStreaming: false,
+                    data: {
+                      impacts: localResult.impacts,
+                    },
+                  }
+                : m
+            )
+          )
+          setStatus('idle')
+          return
+        }
+
+        // No local match — try LLM via Ollama
+        setStatus('executing')
+
+        const result = await sendToAgent(prompt, messages, config, (progress) => {
+          // Update the streaming message with progress
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, content: `⏳ ${progress}...`, isStreaming: true }
+                : m
+            )
+          )
+        })
+
+        // Update with final response
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: response.content, isStreaming: false, data: response.data }
+              ? {
+                  ...m,
+                  content: result.content,
+                  isStreaming: false,
+                  data: result.impacts ? { impacts: result.impacts } : undefined,
+                }
               : m
           )
         )
         setStatus('idle')
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
 
-        if (response.needsConfirmation && !isDryRunPrompt) {
-          setPendingConfirmation({
-            planDescription: response.content,
-            impactSummary: response.data?.impacts?.map((i) => `${i.severity === 'error' ? '❌' : i.severity === 'warning' ? '⚠️' : 'ℹ️'} ${i.description}`).join('\n') ?? 'No impacts detected',
-            risks: [],
-          })
-        }
-      }, 800 + Math.random() * 500)
+        // If Ollama failed and local didn't match, show helpful message
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  content: `I couldn't process that request. Here are some things I can do:\n\n🏠 **Create a house**: "create a house", "make a building 10x8"\n🏠 **Create a room**: "add a room called Kitchen 4x3"\n🧱 **Add a wall**: "add a wall from (0,0) to (5,0)"\n🪟 **Add a window**: "add a window on the north wall"\n🚪 **Add a door**: "add a door on the south wall"\n📋 **View scene**: "show me the scene", "what's in the scene?"\n🔍 **Inspect a wall**: "inspect the north wall"\n\n💡 For smarter responses, make sure Ollama is running:\n\`\`\`bash\nollama serve\nollama pull llama3.2\n\`\`\`\n\nError: ${errorMsg}`,
+                  isStreaming: false,
+                }
+              : m
+          )
+        )
+        setStatus('idle')
+      }
     },
-    [input, isLoading, dryRun],
+    [input, status, messages, config],
   )
+
+  const clearChat = useCallback(() => {
+    setMessages([])
+    setStatus('idle')
+    setError(null)
+  }, [])
+
+  const isLoading = status === 'thinking' || status === 'executing'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', maxWidth: '100%', overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: '13px' }}>
@@ -141,11 +148,14 @@ export function AIChatPanel() {
           <span style={{ fontSize: '16px' }}>🤖</span>
           <span>Pascal Agent</span>
           <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '9999px', background: status === 'idle' ? '#dcfce7' : status === 'error' ? '#fef2f2' : '#eff6ff', color: status === 'idle' ? '#166534' : status === 'error' ? '#991b1b' : '#1e40af' }}>
-            {status === 'idle' ? 'Ready' : status === 'thinking' ? 'Thinking...' : status === 'executing' ? 'Executing...' : status === 'waiting_confirmation' ? 'Confirm?' : status === 'error' ? 'Error' : status}
+            {status === 'idle' ? 'Ready' : status === 'thinking' ? 'Thinking...' : status === 'executing' ? 'Executing...' : status === 'error' ? 'Error' : status}
+          </span>
+          <span style={{ fontSize: '9px', color: '#9ca3af' }}>
+            {config.model}@{config.baseUrl.replace('http://', '').replace('https://', '')}
           </span>
         </div>
         <button
-          onClick={() => { setMessages([]); setStatus('idle'); setPendingConfirmation(null); setError(null); }}
+          onClick={clearChat}
           title="Clear conversation"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '16px', padding: '4px' }}
         >
@@ -157,10 +167,16 @@ export function AIChatPanel() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: '#9ca3af', padding: '24px 0' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>🏗️</div>
-            <div>Ask me to modify your building scene.</div>
-            <div style={{ fontSize: '12px', marginTop: '4px', color: '#d1d5db' }}>
-              Try: &quot;move the kitchen wall out 40cm&quot; or &quot;inspect the north wall&quot;
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏗️</div>
+            <div style={{ fontWeight: 600, marginBottom: '4px' }}>Pascal Agent</div>
+            <div style={{ fontSize: '12px', marginBottom: '12px' }}>I can create buildings, rooms, walls, windows, doors — anything.</div>
+            <div style={{ fontSize: '12px', color: '#6b7280', textAlign: 'left', background: '#f9fafb', borderRadius: '8px', padding: '12px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '6px' }}>Try these:</div>
+              <div>🏠 "create a house"</div>
+              <div>🏠 "make a house 10 by 8"</div>
+              <div>🚪 "add a room called Kitchen 4x3"</div>
+              <div>🧱 "add a wall from (0,0) to (5,0)"</div>
+              <div>📋 "show me the scene"</div>
             </div>
           </div>
         )}
@@ -180,33 +196,6 @@ export function AIChatPanel() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Confirmation prompt */}
-      {pendingConfirmation && (
-        <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fffbeb' }}>
-          <div style={{ fontWeight: 600, marginBottom: '8px' }}>⚠️ Confirm Action</div>
-          <div style={{ marginBottom: '4px' }}>{pendingConfirmation.planDescription}</div>
-          {pendingConfirmation.impactSummary && (
-            <div style={{ fontSize: '12px', color: '#92400e', marginTop: '8px', whiteSpace: 'pre-wrap' }}>
-              {pendingConfirmation.impactSummary}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-            <button
-              onClick={() => { setPendingConfirmation(null); setStatus('idle'); }}
-              style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-            >
-              Apply Changes
-            </button>
-            <button
-              onClick={() => { setPendingConfirmation(null); setStatus('idle'); }}
-              style={{ padding: '6px 12px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Error */}
       {error && (
         <div style={{ padding: '8px 12px', background: '#fef2f2', borderTop: '1px solid #fca5a5', color: '#991b1b', fontSize: '12px' }}>
@@ -217,7 +206,7 @@ export function AIChatPanel() {
       {/* Input */}
       <div style={{ padding: '8px 12px', borderTop: '1px solid #e5e7eb' }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ flex: 1 }}>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -227,7 +216,7 @@ export function AIChatPanel() {
                   handleSubmit(e as unknown as React.FormEvent)
                 }
               }}
-              placeholder={isLoading ? 'Processing...' : 'Describe what you want to do...'}
+              placeholder={isLoading ? 'Processing...' : 'Create a house, add a room, move a wall...'}
               disabled={isLoading}
               rows={1}
               style={{
@@ -241,41 +230,32 @@ export function AIChatPanel() {
                 lineHeight: '1.4',
                 minHeight: '36px',
                 maxHeight: '120px',
-                background: isLoading ? '#f9fafb' : 'white',
+                background: 'transparent',
+                color: 'inherit',
               }}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280' }}>
-              <input
-                type="checkbox"
-                checked={dryRun}
-                onChange={(e) => setDryRun(e.target.checked)}
-                disabled={isLoading}
-              />
-              Preview
-            </label>
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              style={{
-                padding: '8px 12px',
-                background: dryRun ? '#3b82f6' : '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                fontSize: '13px',
-                opacity: isLoading || !input.trim() ? 0.6 : 1,
-              }}
-            >
-              {dryRun ? 'Preview' : 'Apply'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            style={{
+              padding: '8px 16px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              fontSize: '13px',
+              opacity: isLoading || !input.trim() ? 0.6 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isLoading ? '⏳' : '→'} Send
+          </button>
         </form>
         <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
-          {dryRun ? '🔒 Preview mode — changes will be simulated, not applied' : '⚠️ Apply mode — changes will be applied to the scene'}
+          Powered by {config.model} via Ollama • Patterns work offline • LLM for complex requests
         </div>
       </div>
     </div>
@@ -319,7 +299,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
       {message.data?.impacts && message.data.impacts.length > 0 && (
         <div style={{ maxWidth: '85%', marginTop: '4px', padding: '6px 8px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '11px' }}>
           <div style={{ fontWeight: 600, color: '#92400e', marginBottom: '2px' }}>Impact</div>
-          {message.data.impacts.map((impact, i) => (
+          {message.data.impacts.map((impact: { severity: string; description: string }, i: number) => (
             <div key={i} style={{ color: '#92400e' }}>
               {impact.severity === 'error' ? '❌' : impact.severity === 'warning' ? '⚠️' : 'ℹ️'} {impact.description}
             </div>
@@ -343,7 +323,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
       {/* Tool calls */}
       {message.data?.toolCalls && message.data.toolCalls.length > 0 && (
         <div style={{ maxWidth: '85%', marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>
-          {message.data.toolCalls.map((tc, i) => (
+          {message.data.toolCalls.map((tc: { name: string; args: Record<string, unknown> }, i: number) => (
             <div key={i} style={{ padding: '2px 0' }}>
               🔧 {tc.name}({Object.entries(tc.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')})
             </div>
@@ -371,62 +351,6 @@ function TypingDot({ delay }: { delay: number }) {
       }}
     />
   )
-}
-
-// ── Response simulator ──────────────────────────────────────────────────────────────
-// In production, this gets replaced by the actual agent-core executor.
-
-function simulateResponse(prompt: string, isDryRun: boolean): {
-  content: string
-  needsConfirmation: boolean
-  data: ChatMessage['data']
-} {
-  const lower = prompt.toLowerCase()
-
-  if (lower.includes('inspect') || lower.includes('show') || lower.includes('what')) {
-    return {
-      content: `I found the wall you're looking for. Here's what I see:\n\n**North Wall** (wall_kitchen_north)\n- Length: 4.00m\n- Angle: 0° (horizontal)\n- Thickness: 0.20m\n- Height: 2.80m\n- Interior side: interior\n- Exterior side: exterior\n- Openings: 1 window\n\n${isDryRun ? '🔍 This is a preview — no changes were made.' : ''}`,
-      needsConfirmation: false,
-      data: {
-        wallInfo: {
-          id: 'wall_kitchen_north',
-          name: 'North Wall',
-          length: 4.0,
-          angle: 0,
-          thickness: 0.2,
-          height: 2.8,
-          openings: ['window_kitchen_north'],
-        },
-      },
-    }
-  }
-
-  if (lower.includes('move') || lower.includes('shift') || lower.includes('extend') || lower.includes('push')) {
-    return {
-      content: `I'll ${isDryRun ? 'simulate' : 'apply'} moving the wall:\n\n**Plan:** Extend the kitchen north wall by 40cm\n\n**Changes:**\n- Wall end: (4, 0) → (4.4, 0)\n- New length: 4.40m\n\n**Impacts Detected:**\n- 1 window on this wall may need repositioning\n- 1 connected wall may be affected\n\n${isDryRun ? '🔒 Dry-run complete — no changes applied.\n\nTo apply this change, uncheck "Preview" and submit again.' : '✅ Changes applied to the scene.'}`,
-      needsConfirmation: !isDryRun,
-      data: {
-        impacts: [
-          { category: 'opening_bounds_violation', description: '1 window on this wall may need repositioning (window_kitchen_north, width 1.5m)', severity: 'warning' as const, affectedIds: ['window_kitchen_north'] },
-          { category: 'connected_wall_endpoint', description: '1 connected wall shares an endpoint with this wall', severity: 'info' as const, affectedIds: ['wall_kitchen_west'] },
-        ],
-      },
-    }
-  }
-
-  if (lower.includes('validate') || lower.includes('check') || lower.includes('error')) {
-    return {
-      content: `I've validated the scene. Here's what I found:\n\n✅ No errors detected\n⚠️ 1 warning: Wall kitchen_west and kitchen_north share an endpoint\nℹ️ 7 walls, 1 window, 1 zone\n\nThe scene looks structurally sound.`,
-      needsConfirmation: false,
-      data: undefined,
-    }
-  }
-
-  return {
-    content: `I understand you want to: "${prompt}"\n\nI can help you with:\n- **Inspect** a wall: "inspect the north wall"\n- **Move** a wall: "move the kitchen wall out 40cm"\n- **Validate** the scene: "validate"\n- **Resolve** a reference: "the north wall of the kitchen"\n\nWhat would you like to do?`,
-    needsConfirmation: false,
-    data: undefined,
-  }
 }
 
 export default AIChatPanel
